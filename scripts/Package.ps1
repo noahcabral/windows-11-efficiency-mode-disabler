@@ -130,6 +130,10 @@ if (-not $NoPause) {
 '@ | Set-Content -LiteralPath (Join-Path $stageRoot "Uninstall.ps1") -Encoding UTF8
 
 @'
+param(
+    [switch]$NoPause
+)
+
 $ServiceName = "DcaEfficiencyModeDisabler"
 $InstallDir = Join-Path $env:ProgramFiles "DcaEfficiencyModeDisabler"
 $LogPath = Join-Path $InstallDir "DcaEfficiencyModeService.log"
@@ -144,8 +148,10 @@ if (Test-Path $LogPath) {
     Write-Output "No service log found at $LogPath"
 }
 
-Write-Output ""
-Read-Host "Press Enter to close"
+if (-not $NoPause) {
+    Write-Output ""
+    Read-Host "Press Enter to close"
+}
 '@ | Set-Content -LiteralPath (Join-Path $stageRoot "Status.ps1") -Encoding UTF8
 
 @'
@@ -160,7 +166,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Uninstall.ps1"
 
 @'
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Status.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Status.ps1" -NoPause
+set "STATUS_EXIT=%ERRORLEVEL%"
+echo.
+if not "%STATUS_EXIT%"=="0" echo Status script exited with code %STATUS_EXIT%.
+pause
+exit /b %STATUS_EXIT%
 '@ | Set-Content -LiteralPath (Join-Path $stageRoot "Status.cmd") -Encoding ASCII
 
 @'

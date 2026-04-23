@@ -9,7 +9,7 @@ namespace DcaEfficiencyModeService
 {
     internal static class Program
     {
-        private const int DefaultIntervalMs = 5000;
+        private const int DefaultIntervalMs = 1000;
 
         private static int Main(string[] args)
         {
@@ -389,7 +389,7 @@ namespace DcaEfficiencyModeService
         public bool Once;
         public bool DryRun;
         public bool ConsoleMode;
-        public int IntervalMs = 5000;
+        public int IntervalMs = 1000;
 
         public static ServiceOptions Parse(string[] args)
         {

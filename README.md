@@ -10,6 +10,8 @@ It targets both parts of Windows Efficiency Mode:
 
 There is no tray app and no persistent UI. The service runs in the background as `LocalSystem`.
 
+The default scan interval is 1 second. Some apps, especially browsers, can reapply Efficiency Mode repeatedly, so the service keeps correcting it.
+
 ## Install
 
 Download the installer zip from a release, extract it, then right-click `Install.cmd` and choose **Run as administrator**.

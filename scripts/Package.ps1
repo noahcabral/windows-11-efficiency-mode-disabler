@@ -214,6 +214,8 @@ Mode / EcoQoS from accessible processes, restores Low/Idle process priority to
 Normal, and reapplies HighQoS to accessible threads in the background. It has no
 tray app and no persistent UI.
 
+The default scan interval is 1 second.
+
 Install:
 1. Extract this zip.
 2. Right-click Install.cmd and choose "Run as administrator".

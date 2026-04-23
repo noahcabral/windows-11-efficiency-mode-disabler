@@ -1,0 +1,10 @@
+build/
+dist/
+*.log
+*.old
+*.zip
+*.exe
+*.pdb
+*.user
+*.suo
+.vs/

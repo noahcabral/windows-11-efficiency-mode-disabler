@@ -156,16 +156,47 @@ if (-not $NoPause) {
 
 @'
 @echo off
+if not exist "%~dp0Install.ps1" (
+    echo This launcher must be run from an extracted installer folder.
+    echo Windows appears to have run it from inside the zip preview.
+    echo Right-click the zip, choose Extract All..., then run Install.cmd from the extracted folder.
+    echo.
+    pause
+    exit /b 1
+)
+if not exist "%~dp0payload\DcaEfficiencyModeService.exe" (
+    echo Missing payload\DcaEfficiencyModeService.exe.
+    echo Extract the full zip before running Install.cmd.
+    echo.
+    pause
+    exit /b 1
+)
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install.ps1"
 '@ | Set-Content -LiteralPath (Join-Path $stageRoot "Install.cmd") -Encoding ASCII
 
 @'
 @echo off
+if not exist "%~dp0Uninstall.ps1" (
+    echo This launcher must be run from an extracted installer folder.
+    echo Windows appears to have run it from inside the zip preview.
+    echo Right-click the zip, choose Extract All..., then run Uninstall.cmd from the extracted folder.
+    echo.
+    pause
+    exit /b 1
+)
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Uninstall.ps1"
 '@ | Set-Content -LiteralPath (Join-Path $stageRoot "Uninstall.cmd") -Encoding ASCII
 
 @'
 @echo off
+if not exist "%~dp0Status.ps1" (
+    echo This launcher must be run from an extracted installer folder.
+    echo Windows appears to have run it from inside the zip preview.
+    echo Right-click the zip, choose Extract All..., then run Status.cmd from the extracted folder.
+    echo.
+    pause
+    exit /b 1
+)
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Status.ps1" -NoPause
 set "STATUS_EXIT=%ERRORLEVEL%"
 echo.

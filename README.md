@@ -5,12 +5,13 @@ A compact Windows Service that keeps Task Manager Efficiency Mode off for access
 It targets both parts of Windows Efficiency Mode:
 
 - clears EcoQoS / execution-speed throttling
+- proactively keeps accessible processes opted out of execution-speed throttling
 - restores Low/Idle process priority back to Normal
 - reapplies HighQoS to accessible threads so thread-only Efficiency Mode gets reset too
 
 There is no tray app and no persistent UI. The service runs in the background as `LocalSystem`.
 
-The default scan interval is 1 second. Some apps, especially browsers, can reapply Efficiency Mode repeatedly, so the service keeps correcting it.
+The default scan interval is 500 ms, with short 100 ms burst retries after a correction. Some apps, especially browsers, can reapply Efficiency Mode repeatedly, so the service keeps correcting it and reasserting the process opt-out.
 
 ## Install
 

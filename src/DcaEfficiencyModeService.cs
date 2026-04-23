@@ -9,7 +9,7 @@ namespace DcaEfficiencyModeService
 {
     internal static class Program
     {
-        private const int DefaultIntervalMs = 1000;
+        private const int DefaultIntervalMs = 500;
 
         private static int Main(string[] args)
         {
@@ -72,10 +72,11 @@ namespace DcaEfficiencyModeService
         private readonly ManualResetEvent _stopEvent = new ManualResetEvent(false);
         private Thread _thread;
         private DateTime _lastQuietLogUtc = DateTime.MinValue;
+        private const int BurstIntervalMs = 100;
 
         public EfficiencyModeWorker(int intervalMs)
         {
-            _intervalMs = intervalMs < 1000 ? 1000 : intervalMs;
+            _intervalMs = intervalMs < 250 ? 250 : intervalMs;
         }
 
         public void Start(bool dryRun)
@@ -112,10 +113,16 @@ namespace DcaEfficiencyModeService
             Log("worker started dry_run=" + dryRun + " interval_ms=" + _intervalMs);
             while (!_stopEvent.WaitOne(0))
             {
+                int waitMs = _intervalMs;
                 try
                 {
                     ScanResult result = ScanOnce(dryRun);
                     bool changed = result.ProcessesCleared > 0 || result.PriorityClassesRestored > 0;
+                    if (changed && waitMs > BurstIntervalMs)
+                    {
+                        waitMs = BurstIntervalMs;
+                    }
+
                     bool quietLogDue = (DateTime.UtcNow - _lastQuietLogUtc).TotalMinutes >= 5.0;
                     if (changed || quietLogDue)
                     {
@@ -131,7 +138,7 @@ namespace DcaEfficiencyModeService
                     Log("scan failed: " + exc.GetType().Name + ": " + exc.Message);
                 }
 
-                _stopEvent.WaitOne(_intervalMs);
+                _stopEvent.WaitOne(waitMs);
             }
             Log("worker stopped");
         }
@@ -185,14 +192,23 @@ namespace DcaEfficiencyModeService
                     if (NativeMethods.TryGetProcessPowerThrottling(processHandle, out state))
                     {
                         result.ProcessesReadable++;
-                        if (NativeMethods.HasExecutionSpeedThrottling(state))
+                        bool processEcoQos = NativeMethods.HasExecutionSpeedThrottling(state);
+                        if (processEcoQos)
                         {
                             result.ProcessesEcoQos++;
-                            if (!dryRun && NativeMethods.TrySetProcessHighQos(processHandle))
+                        }
+
+                        if (!dryRun)
+                        {
+                            if (NativeMethods.TrySetProcessHighQos(processHandle, state))
                             {
-                                result.ProcessesCleared++;
+                                result.ProcessesHighQosApplied++;
+                                if (processEcoQos)
+                                {
+                                    result.ProcessesCleared++;
+                                }
                             }
-                            else if (!dryRun)
+                            else
                             {
                                 result.ProcessSetFailures++;
                             }
@@ -341,6 +357,7 @@ namespace DcaEfficiencyModeService
         public int ProcessesReadable;
         public int ProcessesEcoQos;
         public int ProcessesCleared;
+        public int ProcessesHighQosApplied;
         public int PriorityClassesReadable;
         public int IdlePriorityClasses;
         public int PriorityClassesRestored;
@@ -360,12 +377,13 @@ namespace DcaEfficiencyModeService
         public string ToLogLine(bool dryRun)
         {
             return string.Format(
-                "scan dry_run={0} processes_seen={1} processes_readable={2} processes_ecoqos={3} processes_cleared={4} priority_readable={5} idle_priority={6} priority_restored={7} priority_query_failures={8} priority_set_failures={9} process_open_failures={10} process_query_failures={11} process_set_failures={12} process_enum_failures={13} threads_seen={14} threads_opened={15} threads_highqos_applied={16} thread_open_failures={17} thread_set_failures={18} thread_enum_failures={19}",
+                "scan dry_run={0} processes_seen={1} processes_readable={2} processes_ecoqos={3} processes_cleared={4} processes_highqos_applied={5} priority_readable={6} idle_priority={7} priority_restored={8} priority_query_failures={9} priority_set_failures={10} process_open_failures={11} process_query_failures={12} process_set_failures={13} process_enum_failures={14} threads_seen={15} threads_opened={16} threads_highqos_applied={17} thread_open_failures={18} thread_set_failures={19} thread_enum_failures={20}",
                 dryRun,
                 ProcessesSeen,
                 ProcessesReadable,
                 ProcessesEcoQos,
                 ProcessesCleared,
+                ProcessesHighQosApplied,
                 PriorityClassesReadable,
                 IdlePriorityClasses,
                 PriorityClassesRestored,
@@ -389,7 +407,7 @@ namespace DcaEfficiencyModeService
         public bool Once;
         public bool DryRun;
         public bool ConsoleMode;
-        public int IntervalMs = 1000;
+        public int IntervalMs = 500;
 
         public static ServiceOptions Parse(string[] args)
         {
@@ -527,9 +545,9 @@ namespace DcaEfficiencyModeService
                 Marshal.SizeOf(typeof(PowerThrottlingState)));
         }
 
-        public static bool TrySetProcessHighQos(IntPtr process)
+        public static bool TrySetProcessHighQos(IntPtr process, PowerThrottlingState currentState)
         {
-            PowerThrottlingState state = HighQosState();
+            PowerThrottlingState state = HighQosState(currentState);
             return SetProcessInformation(
                 process,
                 ProcessPowerThrottling,
@@ -609,6 +627,14 @@ namespace DcaEfficiencyModeService
             state.ControlMask = ExecutionSpeed;
             state.StateMask = 0;
             return state;
+        }
+
+        private static PowerThrottlingState HighQosState(PowerThrottlingState currentState)
+        {
+            currentState.Version = CurrentVersion;
+            currentState.ControlMask |= ExecutionSpeed;
+            currentState.StateMask &= ~ExecutionSpeed;
+            return currentState;
         }
     }
 
